@@ -39,14 +39,19 @@ async function startApolloServer() {
     });
   }
 
-  db.once('open', () => {
+  try {
+    await db.once('open', () => {
+      console.log('Connected to MongoDB');
+    });
+    
     app.listen(PORT, () => {
       console.log(`🚀 API server running on http://localhost:${PORT}`);
       console.log(`🚀 Use GraphQL at http://localhost:${PORT}${server.graphqlPath}`);
     });
-  });
-
-  return { server, app };
+  } catch (err) {
+    console.error('Error connecting to the database:', err);
+    process.exit(1);
+  }
 }
 
 startApolloServer().catch(error => {
