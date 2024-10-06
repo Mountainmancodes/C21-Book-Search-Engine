@@ -27,7 +27,6 @@ async function startApolloServer() {
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
 
-  // Serve static assets in production
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../client/dist')));
 
@@ -45,10 +44,6 @@ async function startApolloServer() {
       console.log(`🚀 API server running on http://localhost:${PORT}`);
       console.log(`🚀 Use GraphQL at http://localhost:${PORT}${server.graphqlPath}`);
     });
-  });
-
-  db.on('error', (err) => {
-    console.error('MongoDB connection error:', err);
   });
 
   return { server, app };
