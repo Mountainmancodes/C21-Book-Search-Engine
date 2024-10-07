@@ -51,7 +51,7 @@ You can try the app live here: [C21 Book Search Engine](https://c21-book-search-
 
 #### Example 2: Books Saved List
 
-![Books Saved List](./images/C21%20Example%202.png)
+![Books Saved List](./images/C21%20Example%202%20.png)
 
 ## Contributing
 
