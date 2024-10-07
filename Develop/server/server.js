@@ -5,6 +5,7 @@ const { ApolloServer } = require('apollo-server-express');
 const { authMiddleware } = require('./utils/auth');
 const { typeDefs, resolvers } = require('./schemas');
 const db = require('./config/connection');
+const cors = require('cors');
 
 const PORT = process.env.PORT || 3001;
 const app = express();
@@ -22,10 +23,18 @@ async function startApolloServer() {
 
   await server.start();
 
-  server.applyMiddleware({ app, path: '/graphql' });
+ 
+  app.use(cors());
 
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
+
+  
+  server.applyMiddleware({ 
+    app, 
+    path: '/graphql',
+    cors: false
+  });
 
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../client/dist')));
@@ -39,10 +48,15 @@ async function startApolloServer() {
     });
   }
 
+  
+  app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
+  });
+
   try {
-    await db.once('open', () => {
-      console.log('Connected to MongoDB');
-    });
+    await new Promise(resolve => db.once('open', resolve));
+    console.log('Connected to MongoDB');
     
     app.listen(PORT, () => {
       console.log(`🚀 API server running on http://localhost:${PORT}`);
