@@ -14,9 +14,26 @@ import Auth from '../utils/auth';
 import { saveBookIds, getSavedBookIds } from '../utils/localStorage';
 import { SAVE_BOOK } from '../mutations';
 
+// Debounce hook
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 const searchCache = new Map();
 let lastRequestTime = 0;
-const minRequestInterval = 2000;
+const minRequestInterval = 5000;
 
 const SearchBooks = () => {
   const [searchedBooks, setSearchedBooks] = useState([]);
@@ -26,6 +43,8 @@ const SearchBooks = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   const [saveBook] = useMutation(SAVE_BOOK);
+
+  const debouncedSearchInput = useDebounce(searchInput, 500);
 
   useEffect(() => {
     return () => saveBookIds(savedBookIds);
@@ -81,6 +100,12 @@ const SearchBooks = () => {
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (debouncedSearchInput) {
+      searchGoogleBooks(debouncedSearchInput);
+    }
+  }, [debouncedSearchInput, searchGoogleBooks]);
 
   const handleFormSubmit = (event) => {
     event.preventDefault();
