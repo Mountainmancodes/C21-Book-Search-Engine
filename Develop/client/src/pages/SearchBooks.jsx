@@ -5,7 +5,8 @@ import {
   Form,
   Button,
   Card,
-  Row
+  Row,
+  Alert
 } from 'react-bootstrap';
 import { useMutation } from '@apollo/client';
 
@@ -57,6 +58,10 @@ const SearchBooks = () => {
       }
 
       const { items } = await response.json();
+
+      if (!items) {
+        throw new Error('No books found. Try a different search term.');
+      }
 
       const bookData = items.map((book) => ({
         bookId: book.id,
