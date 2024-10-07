@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Col,
@@ -13,10 +13,13 @@ import Auth from '../utils/auth';
 import { saveBookIds, getSavedBookIds } from '../utils/localStorage';
 import { SAVE_BOOK } from '../mutations';
 
+const searchCache = new Map();
+
 const SearchBooks = () => {
   const [searchedBooks, setSearchedBooks] = useState([]);
   const [searchInput, setSearchInput] = useState('');
   const [savedBookIds, setSavedBookIds] = useState(getSavedBookIds());
+  const [isLoading, setIsLoading] = useState(false);
 
   const [saveBook, { error }] = useMutation(SAVE_BOOK);
 
@@ -24,15 +27,28 @@ const SearchBooks = () => {
     return () => saveBookIds(savedBookIds);
   });
 
-  const handleFormSubmit = async (event) => {
-    event.preventDefault();
+  // Debounce function to limit API calls
+  const debounce = (func, delay) => {
+    let timeoutId;
+    return (...args) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        func(...args);
+      }, delay);
+    };
+  };
 
-    if (!searchInput) {
-      return false;
+  const searchGoogleBooks = useCallback(debounce(async (query) => {
+    if (searchCache.has(query)) {
+      setSearchedBooks(searchCache.get(query));
+      return;
     }
 
+    setIsLoading(true);
     try {
-      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${searchInput}`);
+      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}`);
 
       if (!response.ok) {
         throw new Error('something went wrong!');
@@ -48,10 +64,26 @@ const SearchBooks = () => {
         image: book.volumeInfo.imageLinks?.thumbnail || '',
       }));
 
+      searchCache.set(query, bookData);
       setSearchedBooks(bookData);
-      setSearchInput('');
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, 300), []);
+
+  const handleFormSubmit = (event) => {
+    event.preventDefault();
+    if (!searchInput) return;
+    searchGoogleBooks(searchInput);
+  };
+
+  const handleInputChange = (event) => {
+    const { value } = event.target;
+    setSearchInput(value);
+    if (value) {
+      searchGoogleBooks(value);
     }
   };
 
@@ -89,15 +121,15 @@ const SearchBooks = () => {
                 <Form.Control
                   name='searchInput'
                   value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
+                  onChange={handleInputChange}
                   type='text'
                   size='lg'
                   placeholder='Search for a book'
                 />
               </Col>
               <Col xs={12} md={4}>
-                <Button type='submit' variant='success' size='lg'>
-                  Submit Search
+                <Button type='submit' variant='success' size='lg' disabled={isLoading}>
+                  {isLoading ? 'Searching...' : 'Submit Search'}
                 </Button>
               </Col>
             </Row>
