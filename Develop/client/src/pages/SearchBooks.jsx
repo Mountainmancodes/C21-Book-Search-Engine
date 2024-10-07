@@ -16,7 +16,7 @@ import { SAVE_BOOK } from '../mutations';
 
 const searchCache = new Map();
 let lastRequestTime = 0;
-const minRequestInterval = 1000;
+const minRequestInterval = 2000;
 
 const SearchBooks = () => {
   const [searchedBooks, setSearchedBooks] = useState([]);
@@ -39,44 +39,44 @@ const SearchBooks = () => {
 
     const now = Date.now();
     if (now - lastRequestTime < minRequestInterval) {
-      await new Promise(resolve => setTimeout(resolve, minRequestInterval - (now - lastRequestTime)));
+      const waitTime = minRequestInterval - (now - lastRequestTime);
+      setErrorMessage(`Please wait ${Math.ceil(waitTime / 1000)} seconds before trying again.`);
+      return;
     }
 
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20`);
       lastRequestTime = Date.now();
 
       if (response.status === 429) {
-        const retryAfter = response.headers.get('Retry-After') || 5;
-        throw new Error(`Rate limit exceeded. Please try again in ${retryAfter} seconds.`);
+        throw new Error('Rate limit exceeded. Please try again in a few seconds.');
       }
 
       if (!response.ok) {
         throw new Error('Failed to fetch books. Please try again later.');
       }
 
-      const { items } = await response.json();
-
-      if (!items) {
-        throw new Error('No books found. Try a different search term.');
-      }
+      const data = await response.json();
+      const items = data.items || [];
 
       const bookData = items.map((book) => ({
         bookId: book.id,
         authors: book.volumeInfo.authors || ['No author to display'],
         title: book.volumeInfo.title,
-        description: book.volumeInfo.description,
+        description: book.volumeInfo.description || 'No description available',
         image: book.volumeInfo.imageLinks?.thumbnail || '',
       }));
 
       searchCache.set(query, bookData);
       setSearchedBooks(bookData);
+      if (bookData.length === 0) {
+        setErrorMessage('No books found. Try a different search term.');
+      }
     } catch (err) {
       console.error(err);
       setErrorMessage(err.message);
-      setSearchedBooks([]);
     } finally {
       setIsLoading(false);
     }
