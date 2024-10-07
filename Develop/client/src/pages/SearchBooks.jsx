@@ -14,44 +14,46 @@ import { saveBookIds, getSavedBookIds } from '../utils/localStorage';
 import { SAVE_BOOK } from '../mutations';
 
 const searchCache = new Map();
+let lastRequestTime = 0;
+const minRequestInterval = 1000;
 
 const SearchBooks = () => {
   const [searchedBooks, setSearchedBooks] = useState([]);
   const [searchInput, setSearchInput] = useState('');
   const [savedBookIds, setSavedBookIds] = useState(getSavedBookIds());
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const [saveBook, { error }] = useMutation(SAVE_BOOK);
+  const [saveBook] = useMutation(SAVE_BOOK);
 
   useEffect(() => {
     return () => saveBookIds(savedBookIds);
-  });
+  }, [savedBookIds]);
 
-  // Debounce function to limit API calls
-  const debounce = (func, delay) => {
-    let timeoutId;
-    return (...args) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      timeoutId = setTimeout(() => {
-        func(...args);
-      }, delay);
-    };
-  };
-
-  const searchGoogleBooks = useCallback(debounce(async (query) => {
+  const searchGoogleBooks = useCallback(async (query) => {
     if (searchCache.has(query)) {
       setSearchedBooks(searchCache.get(query));
       return;
     }
 
+    const now = Date.now();
+    if (now - lastRequestTime < minRequestInterval) {
+      await new Promise(resolve => setTimeout(resolve, minRequestInterval - (now - lastRequestTime)));
+    }
+
     setIsLoading(true);
+    setErrorMessage('');
     try {
-      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}`);
+      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}`);
+      lastRequestTime = Date.now();
+
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After') || 5;
+        throw new Error(`Rate limit exceeded. Please try again in ${retryAfter} seconds.`);
+      }
 
       if (!response.ok) {
-        throw new Error('something went wrong!');
+        throw new Error('Failed to fetch books. Please try again later.');
       }
 
       const { items } = await response.json();
@@ -68,23 +70,17 @@ const SearchBooks = () => {
       setSearchedBooks(bookData);
     } catch (err) {
       console.error(err);
+      setErrorMessage(err.message);
+      setSearchedBooks([]);
     } finally {
       setIsLoading(false);
     }
-  }, 300), []);
+  }, []);
 
   const handleFormSubmit = (event) => {
     event.preventDefault();
     if (!searchInput) return;
     searchGoogleBooks(searchInput);
-  };
-
-  const handleInputChange = (event) => {
-    const { value } = event.target;
-    setSearchInput(value);
-    if (value) {
-      searchGoogleBooks(value);
-    }
   };
 
   const handleSaveBook = async (bookId) => {
@@ -96,14 +92,9 @@ const SearchBooks = () => {
     }
 
     try {
-      const { data } = await saveBook({
+      await saveBook({
         variables: { bookData: { ...bookToSave } },
       });
-
-      if (error) {
-        throw new Error('something went wrong!');
-      }
-
       setSavedBookIds([...savedBookIds, bookToSave.bookId]);
     } catch (err) {
       console.error(err);
@@ -121,10 +112,11 @@ const SearchBooks = () => {
                 <Form.Control
                   name='searchInput'
                   value={searchInput}
-                  onChange={handleInputChange}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   type='text'
                   size='lg'
                   placeholder='Search for a book'
+                  disabled={isLoading}
                 />
               </Col>
               <Col xs={12} md={4}>
@@ -138,6 +130,7 @@ const SearchBooks = () => {
       </div>
 
       <Container>
+        {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
         <h2 className='pt-5'>
           {searchedBooks.length
             ? `Viewing ${searchedBooks.length} results:`
