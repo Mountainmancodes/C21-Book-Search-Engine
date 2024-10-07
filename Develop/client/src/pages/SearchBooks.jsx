@@ -9,12 +9,11 @@ import {
   Alert
 } from 'react-bootstrap';
 import { useMutation } from '@apollo/client';
-
 import Auth from '../utils/auth';
 import { saveBookIds, getSavedBookIds } from '../utils/localStorage';
 import { SAVE_BOOK } from '../mutations';
 
-// Debounce hook
+// Debounce hook to delay search execution
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -44,6 +43,7 @@ const SearchBooks = () => {
 
   const [saveBook] = useMutation(SAVE_BOOK);
 
+  // Use the debounce hook for the search input
   const debouncedSearchInput = useDebounce(searchInput, 500);
 
   useEffect(() => {
@@ -90,6 +90,7 @@ const SearchBooks = () => {
 
       searchCache.set(query, bookData);
       setSearchedBooks(bookData);
+
       if (bookData.length === 0) {
         setErrorMessage('No books found. Try a different search term.');
       }
@@ -101,6 +102,7 @@ const SearchBooks = () => {
     }
   }, []);
 
+  // Trigger search when the debounced value changes
   useEffect(() => {
     if (debouncedSearchInput) {
       searchGoogleBooks(debouncedSearchInput);
