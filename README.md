@@ -39,15 +39,19 @@ This application is a book search engine that allows users to search for books, 
 
 ## Examples
 
-Live demo: [C21 Book Search Engine](https://c21-book-search-engine-y1ui.onrender.com)
+### Live Demo
 
-Example 1: ![Book Search Results](./images/C21%20Example%201.png)
+You can try the app live here: [C21 Book Search Engine](https://c21-book-search-engine-y1ui.onrender.com)
 
-Example 2: ![Books Saved List](./images/C21%20Example%202%20.png)
+### Screenshots
 
-## Deployment
+#### Example 1: Book Search Results
 
-This application is configured for deployment on Render. Ensure all environment variables are set in the Render dashboard.
+![Book Search Results](./images/C21%20Example%201.png)
+
+#### Example 2: Books Saved List
+
+![Books Saved List](./images/C21%20Example%202.png)
 
 ## Contributing
 
